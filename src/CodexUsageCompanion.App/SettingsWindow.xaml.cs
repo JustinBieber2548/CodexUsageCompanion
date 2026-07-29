@@ -32,6 +32,8 @@ public partial class SettingsWindow : Window
         ResetWarningBox.IsChecked = settings.ShortTermResetWarningEnabled;
         ResetDetectedBox.IsChecked = settings.ResetDetectedEnabled;
         EveryChangeBox.IsChecked = settings.EveryUsageChangeEnabled;
+        ActivityBox.IsChecked = settings.ActivityNotificationsEnabled;
+        DailySummaryBox.IsChecked = settings.DailySummaryEnabled;
         SupabaseUrlBox.Text = settings.SupabaseUrl ?? string.Empty;
         SupabaseKeyBox.Text = settings.SupabasePublishableKey ?? string.Empty;
         EmailBox.Text = settings.SupabaseEmail ?? string.Empty;
@@ -112,6 +114,8 @@ public partial class SettingsWindow : Window
             ShortTermResetWarningEnabled = ResetWarningBox.IsChecked == true,
             ResetDetectedEnabled = ResetDetectedBox.IsChecked == true,
             EveryUsageChangeEnabled = EveryChangeBox.IsChecked == true,
+            ActivityNotificationsEnabled = ActivityBox.IsChecked == true,
+            DailySummaryEnabled = DailySummaryBox.IsChecked == true,
             SupabaseUrl = EmptyToNull(SupabaseUrlBox.Text),
             SupabasePublishableKey = EmptyToNull(SupabaseKeyBox.Text),
             SupabaseEmail = EmptyToNull(EmailBox.Text),

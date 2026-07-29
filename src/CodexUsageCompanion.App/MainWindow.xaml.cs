@@ -24,8 +24,17 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        e.Cancel = true;
-        Hide();
+        if (!_controller.IsExiting
+            && !System.Windows.Application.Current.Dispatcher.HasShutdownStarted)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
+        _controller.StateChanged -= OnStateChanged;
+        _countdownTimer.Stop();
+        base.OnClosing(e);
     }
 
     private void OnStateChanged(object? sender, EventArgs e)
@@ -74,6 +83,17 @@ public partial class MainWindow : Window
             MessageBoxImage.Information);
     }
 
+    private void Copy_Click(object sender, RoutedEventArgs e)
+    {
+        System.Windows.Clipboard.SetText(_controller.GetDiagnosticSummary());
+        System.Windows.MessageBox.Show(
+            this,
+            "A sanitized diagnostic summary was copied to the clipboard.",
+            "Summary copied",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
     private void Render()
     {
         var state = _controller.State;
@@ -81,6 +101,8 @@ public partial class MainWindow : Window
         var shortWindow = snapshot?.ShortTermWindow;
         var weeklyWindow = snapshot?.WeeklyWindow;
 
+        ShortWindowNameText.Text = shortWindow?.Name ?? "Short-term window";
+        WeeklyWindowNameText.Text = weeklyWindow?.Name ?? "Weekly window";
         RenderWindow(shortWindow, ShortPercentText, ShortProgress, ShortResetText);
         RenderWindow(weeklyWindow, WeeklyPercentText, WeeklyProgress, WeeklyResetText);
 
@@ -148,7 +170,7 @@ public partial class MainWindow : Window
     {
         return status switch
         {
-            UsageFreshness.Fresh => "Online",
+            UsageFreshness.Fresh => "Fresh",
             UsageFreshness.Stale => "Stale",
             UsageFreshness.Offline => "Offline",
             UsageFreshness.AuthenticationRequired => "Sign-in needed",

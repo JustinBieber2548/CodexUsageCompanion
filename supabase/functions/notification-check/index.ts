@@ -228,11 +228,38 @@ async function insertAndDeliver(
     }
 
     const inserted = await insertResponse.json() as JsonRecord[];
-    if (inserted.length === 0) {
-        return false;
+    let delivery = inserted[0];
+    if (!delivery) {
+        const query = new URLSearchParams({
+            profile_id: `eq.${profile.id}`,
+            idempotency_key: `eq.${event.idempotencyKey}`,
+            status: "eq.failed",
+            select: "id,attempt_count,next_attempt_at",
+            limit: "1",
+        });
+        const retryResponse = await adminRestFetch(
+            `/rest/v1/notification_events?${query}`,
+        );
+        if (!retryResponse.ok) {
+            throw new Error("notification_retry_query_failed");
+        }
+
+        const retryRows = await retryResponse.json() as JsonRecord[];
+        delivery = retryRows[0];
+        const attemptCount = Number(delivery?.attempt_count ?? 0);
+        const nextAttemptAt = typeof delivery?.next_attempt_at === "string"
+            ? new Date(delivery.next_attempt_at)
+            : null;
+        if (
+            !delivery || attemptCount >= 6 ||
+            (nextAttemptAt && nextAttemptAt > new Date())
+        ) {
+            return false;
+        }
     }
 
-    const eventId = Number(inserted[0].id);
+    const eventId = Number(delivery.id);
+    const attemptCount = Number(delivery.attempt_count ?? 0) + 1;
     const sent = await sendTelegramMessage(
         profile.telegram_chat_id,
         event.message,
@@ -245,10 +272,17 @@ async function insertAndDeliver(
                     status: "delivered",
                     delivered_at: new Date().toISOString(),
                     error_sanitized: null,
+                    attempt_count: attemptCount,
+                    next_attempt_at: null,
                 }
                 : {
                     status: "failed",
                     error_sanitized: "telegram_api_failure",
+                    attempt_count: attemptCount,
+                    next_attempt_at: new Date(
+                        Date.now() +
+                            Math.min(30 * 2 ** attemptCount, 1800) * 1000,
+                    ).toISOString(),
                 },
         ),
     });

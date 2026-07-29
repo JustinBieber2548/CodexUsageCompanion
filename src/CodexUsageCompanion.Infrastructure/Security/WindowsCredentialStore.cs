@@ -46,6 +46,7 @@ public sealed class WindowsCredentialStore : ICredentialStore
         {
             if (secretBytes.Length > 0)
             {
+                Marshal.Copy(new byte[secretBytes.Length], 0, blob, secretBytes.Length);
                 Array.Clear(secretBytes, 0, secretBytes.Length);
             }
 

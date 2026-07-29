@@ -68,6 +68,11 @@ public sealed class TrayShell : IDisposable
 
     public void ShowNotification(AppNotification notification)
     {
+        if (NativeToastNotifier.TryShow(notification))
+        {
+            return;
+        }
+
         _icon.BalloonTipTitle = notification.Title;
         _icon.BalloonTipText = notification.Message;
         _icon.BalloonTipIcon = ToolTipIcon.Info;
@@ -100,21 +105,58 @@ public sealed class TrayShell : IDisposable
         var state = _controller.State;
         var shortRemaining = state.LatestSnapshot?.ShortTermWindow?.RemainingPercent;
         var weeklyRemaining = state.LatestSnapshot?.WeeklyWindow?.RemainingPercent;
-        var text = shortRemaining is null && weeklyRemaining is null
-            ? $"Codex Usage - {state.CurrentStatus}"
-            : $"Codex Usage - 5h {shortRemaining:0.#}% - weekly {weeklyRemaining:0.#}%";
+        var text = CreateTooltip();
         _icon.Text = text.Length > 63 ? text[..63] : text;
         var color = state.CurrentStatus switch
         {
-            UsageFreshness.Fresh when Math.Min(shortRemaining ?? 100, weeklyRemaining ?? 100) <= 10 =>
-                Color.FromArgb(217, 119, 6),
-            UsageFreshness.Fresh => Color.FromArgb(5, 150, 105),
-            UsageFreshness.AuthenticationRequired => Color.FromArgb(220, 38, 38),
+            UsageFreshness.Fresh when (shortRemaining ?? -1) > 50 =>
+                Color.FromArgb(5, 150, 105),
+            UsageFreshness.Fresh when (shortRemaining ?? -1) >= 20 =>
+                Color.FromArgb(234, 179, 8),
+            UsageFreshness.Fresh when shortRemaining is not null =>
+                Color.FromArgb(220, 38, 38),
             _ => Color.FromArgb(107, 114, 128)
         };
         var oldIcon = _icon.Icon;
         _icon.Icon = CreateIcon(color);
         oldIcon?.Dispose();
+    }
+
+    private string CreateTooltip()
+    {
+        var snapshot = _controller.State.LatestSnapshot;
+        if (snapshot?.ShortTermWindow?.RemainingPercent is not { } shortRemaining)
+        {
+            return $"Codex · Usage unavailable · {_controller.State.CurrentStatus}";
+        }
+
+        var weekly = snapshot.WeeklyWindow?.RemainingPercent is { } weeklyRemaining
+            ? $"{weeklyRemaining:0.#}%"
+            : "n/a";
+        var reset = snapshot.ShortTermWindow.ResetsAtUtc is { } resetAt
+            ? CompactDuration(resetAt - DateTimeOffset.UtcNow)
+            : "n/a";
+        var updated = _controller.State.LastSuccessfulReadAtUtc is { } readAt
+            ? CompactDuration(DateTimeOffset.UtcNow - readAt) + " ago"
+            : "never";
+        return $"Codex · Short {shortRemaining:0.#}% · Week {weekly} · Reset {reset} · {updated}";
+    }
+
+    private static string CompactDuration(TimeSpan value)
+    {
+        if (value <= TimeSpan.Zero)
+        {
+            return "due";
+        }
+
+        if (value.TotalHours >= 1)
+        {
+            return $"{Math.Floor(value.TotalHours):0}h{value.Minutes}m";
+        }
+
+        return value.TotalMinutes >= 1
+            ? $"{Math.Floor(value.TotalMinutes):0}m"
+            : $"{Math.Max(0, Math.Floor(value.TotalSeconds)):0}s";
     }
 
     private void ShowWindow()

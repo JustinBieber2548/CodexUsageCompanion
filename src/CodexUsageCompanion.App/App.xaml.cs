@@ -1,4 +1,5 @@
 using System.Windows;
+using CodexUsageCompanion.Infrastructure.Storage;
 
 namespace CodexUsageCompanion.App;
 
@@ -13,6 +14,23 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
         try
         {
+            var prepareIndex = Array.FindIndex(
+                e.Args,
+                argument => string.Equals(
+                    argument,
+                    "--prepare-upgrade",
+                    StringComparison.OrdinalIgnoreCase));
+            if (prepareIndex >= 0)
+            {
+                var targetVersion = prepareIndex + 1 < e.Args.Length
+                    ? e.Args[prepareIndex + 1]
+                    : "unknown";
+                await new UpgradeBackupService(new ApplicationPaths())
+                    .BackupAndValidateAsync(DesktopAppController.Version, targetVersion);
+                Shutdown(0);
+                return;
+            }
+
             _controller = await DesktopAppController.CreateAsync();
             _mainWindow = new MainWindow(_controller);
             _tray = new TrayShell(_controller, _mainWindow);
@@ -27,6 +45,12 @@ public partial class App : System.Windows.Application
         }
         catch (Exception exception)
         {
+            if (e.Args.Contains("--prepare-upgrade", StringComparer.OrdinalIgnoreCase))
+            {
+                Shutdown(2);
+                return;
+            }
+
             System.Windows.MessageBox.Show(
                 $"Codex Usage Companion could not start.\n\n{exception.Message}",
                 "Startup problem",

@@ -299,6 +299,25 @@ public sealed class CodexOAuthUsageReader : ICodexUsageReader, IDisposable
             throw new InvalidDataException("A network Codex home is not supported.");
         }
 
+        var root = Path.GetPathRoot(fullHome);
+        if (!string.IsNullOrWhiteSpace(root)
+            && new DriveInfo(root).DriveType == DriveType.Network)
+        {
+            throw new InvalidDataException("A network Codex home is not supported.");
+        }
+
+        for (var directory = new DirectoryInfo(fullHome);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (directory.Exists
+                && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException(
+                    "Codex authentication cannot be read through a linked directory.");
+            }
+        }
+
         return Path.Combine(fullHome, "auth.json");
     }
 

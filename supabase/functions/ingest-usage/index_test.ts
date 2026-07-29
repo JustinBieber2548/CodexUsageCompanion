@@ -1,4 +1,4 @@
-import { RequestError } from "../_shared/http.ts";
+import { readJsonObject, RequestError } from "../_shared/http.ts";
 import { validatePayload } from "./index.ts";
 
 Deno.test("ingest accepts a normalized snapshot", () => {
@@ -24,6 +24,31 @@ Deno.test("ingest rejects invalid application versions", () => {
     const input = validPayload();
     input.appVersion = "release-one";
     assertRequestError(() => validatePayload(input), "invalid_app_version");
+});
+
+Deno.test("ingest rejects oversized payloads before authorization", async () => {
+    try {
+        await readJsonObject(
+            new Request(
+                "https://project.supabase.co/functions/v1/ingest-usage",
+                {
+                    method: "POST",
+                    body: "x".repeat(16 * 1024 + 1),
+                },
+            ),
+            16 * 1024,
+        );
+    } catch (error) {
+        if (
+            error instanceof RequestError && error.code === "payload_too_large"
+        ) {
+            return;
+        }
+
+        throw error;
+    }
+
+    throw new Error("Expected oversized payload rejection");
 });
 
 function validPayload(): Record<string, unknown> {

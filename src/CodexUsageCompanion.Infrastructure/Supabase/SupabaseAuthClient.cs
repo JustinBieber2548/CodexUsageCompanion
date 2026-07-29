@@ -200,8 +200,14 @@ public sealed class SupabaseAuthClient
             await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
             cancellationToken: cancellationToken).ConfigureAwait(false);
         var root = document.RootElement;
-        var accessToken = root.GetProperty("access_token").GetString();
-        var refreshToken = root.GetProperty("refresh_token").GetString();
+        var accessToken = root.TryGetProperty("access_token", out var accessElement)
+            && accessElement.ValueKind == JsonValueKind.String
+            ? accessElement.GetString()
+            : null;
+        var refreshToken = root.TryGetProperty("refresh_token", out var refreshElement)
+            && refreshElement.ValueKind == JsonValueKind.String
+            ? refreshElement.GetString()
+            : null;
         var expiresIn = root.TryGetProperty("expires_in", out var expiresElement)
             && expiresElement.TryGetInt32(out var seconds)
             ? seconds

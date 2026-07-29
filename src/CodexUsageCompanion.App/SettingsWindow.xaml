@@ -79,6 +79,12 @@
                     <CheckBox x:Name="EveryChangeBox"
                               Margin="0,0,0,14"
                               Content="Notify for every usage change (noisy)" />
+                    <CheckBox x:Name="ActivityBox"
+                              Margin="0,0,0,14"
+                              Content="Notify when Codex activity or ChatGPT open/close state changes" />
+                    <CheckBox x:Name="DailySummaryBox"
+                              Margin="0,0,0,14"
+                              Content="Show one daily summary after 9:00 in the display time zone" />
                     <TextBlock Margin="0,10,0,0"
                                Foreground="{StaticResource MutedBrush}"
                                TextWrapping="Wrap"

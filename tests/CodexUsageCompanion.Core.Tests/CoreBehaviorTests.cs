@@ -67,6 +67,7 @@ public sealed class CoreBehaviorTests
             0,
             SemanticVersion.Parse("v1.0.0+build.5").CompareTo(SemanticVersion.Parse("1.0.0+other")));
         Assert.False(SemanticVersion.TryParse("01.0.0", out _));
+        Assert.False(SemanticVersion.TryParse("1.0.0-01", out _));
     }
 
     [Fact]

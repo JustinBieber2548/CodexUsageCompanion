@@ -19,19 +19,23 @@ export async function sendTelegramMessage(
         throw new Error("TELEGRAM_BOT_TOKEN is unavailable");
     }
 
-    const response = await fetch(
-        `https://api.telegram.org/bot${botToken}/sendMessage`,
-        {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text,
-                disable_web_page_preview: true,
-            }),
-        },
-    );
-    return response.ok;
+    try {
+        const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/sendMessage`,
+            {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text,
+                    disable_web_page_preview: true,
+                }),
+            },
+        );
+        return response.ok;
+    } catch {
+        return false;
+    }
 }
 
 export function formatUsageMessage(

@@ -57,10 +57,15 @@ export async function handleRequest(request: Request): Promise<Response> {
             return jsonResponse({ ok: true, ignored: true });
         }
 
-        const command = normalizeCommand(update.message?.text);
-        const responseText = await commandResponse(command, profileId);
-        if (!(await sendTelegramMessage(chatId, responseText))) {
-            throw new Error("telegram_send_failed");
+        try {
+            const command = normalizeCommand(update.message?.text);
+            const responseText = await commandResponse(command, profileId);
+            if (!(await sendTelegramMessage(chatId, responseText))) {
+                throw new Error("telegram_send_failed");
+            }
+        } catch (error) {
+            await forgetUpdate(update.update_id!, profileId);
+            throw error;
         }
 
         return jsonResponse({ ok: true });
@@ -126,6 +131,23 @@ async function rememberUpdate(
 
     const rows = await response.json() as JsonRecord[];
     return rows.length > 0;
+}
+
+async function forgetUpdate(
+    updateId: number,
+    profileId: string,
+): Promise<void> {
+    const query = new URLSearchParams({
+        update_id: `eq.${updateId}`,
+        profile_id: `eq.${profileId}`,
+    });
+    const response = await adminRestFetch(
+        `/rest/v1/processed_telegram_updates?${query}`,
+        { method: "DELETE" },
+    );
+    if (!response.ok) {
+        throw new Error("telegram_update_release_failed");
+    }
 }
 
 async function formatStatus(profileId: string): Promise<string> {

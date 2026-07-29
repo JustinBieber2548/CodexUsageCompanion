@@ -34,6 +34,12 @@ public sealed record LocalState
 
     public DateTimeOffset? LastUpdateCheckAtUtc { get; init; }
 
+    public bool? WasCodexActive { get; init; }
+
+    public bool? WasChatGptOpen { get; init; }
+
+    public DateOnly? LastDailySummaryLocalDate { get; init; }
+
     public UsageFreshness CurrentStatus { get; init; } = UsageFreshness.Stale;
 
     public string? LastErrorCode { get; init; }

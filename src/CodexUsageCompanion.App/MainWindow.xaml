@@ -54,7 +54,8 @@
                         CornerRadius="14"
                         Background="{StaticResource PanelBrush}">
                     <StackPanel>
-                        <TextBlock Text="5-hour window"
+                        <TextBlock x:Name="ShortWindowNameText"
+                                   Text="Short-term window"
                                    Foreground="{StaticResource MutedBrush}"
                                    FontSize="14" />
                         <TextBlock x:Name="ShortPercentText"
@@ -77,7 +78,8 @@
                         CornerRadius="14"
                         Background="{StaticResource PanelBrush}">
                     <StackPanel>
-                        <TextBlock Text="Weekly window"
+                        <TextBlock x:Name="WeeklyWindowNameText"
+                                   Text="Weekly window"
                                    Foreground="{StaticResource MutedBrush}"
                                    FontSize="14" />
                         <TextBlock x:Name="WeeklyPercentText"
@@ -139,6 +141,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -150,7 +153,8 @@
                         BorderThickness="0" />
                 <Button Grid.Column="1" Content="Settings" Click="Settings_Click" />
                 <Button Grid.Column="2" Content="Export diagnostics" Click="Export_Click" />
-                <TextBlock Grid.Column="4"
+                <Button Grid.Column="3" Content="Copy summary" Click="Copy_Click" />
+                <TextBlock Grid.Column="5"
                            VerticalAlignment="Center"
                            Foreground="{StaticResource MutedBrush}"
                            Text="Closing this window keeps monitoring in the tray." />

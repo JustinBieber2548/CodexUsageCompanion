@@ -34,6 +34,7 @@ public sealed class DesktopAppController : IDisposable
     private readonly CancellationTokenSource _shutdown = new();
     private System.Threading.Timer? _timer;
     private ICodexUsageReader _reader;
+    private int _consecutiveReaderFailures;
     private bool _disposed;
 
     private DesktopAppController(
@@ -66,6 +67,8 @@ public sealed class DesktopAppController : IDisposable
     public AppSettings Settings { get; private set; }
 
     public LocalState State { get; private set; }
+
+    public bool IsExiting { get; private set; }
 
     public ApplicationPaths Paths => _paths;
 
@@ -131,6 +134,7 @@ public sealed class DesktopAppController : IDisposable
             var result = await _reader.ReadAsync(_shutdown.Token);
             if (result.IsSuccess && result.Snapshot is not null)
             {
+                _consecutiveReaderFailures = 0;
                 var snapshot = result.Snapshot;
                 var freshness = FreshnessEvaluator.Evaluate(
                     snapshot,
@@ -139,6 +143,8 @@ public sealed class DesktopAppController : IDisposable
                 snapshot = snapshot with { Freshness = freshness };
                 State = State.WithSuccessfulSnapshot(snapshot, now);
                 EvaluateNotifications(snapshot, now);
+                EvaluateActivityNotifications();
+                EvaluateDailySummary(now);
                 await _stateStore.SaveAsync(State, _shutdown.Token);
                 await SynchronizePendingAsync();
                 await _logger.WriteAsync(
@@ -149,11 +155,14 @@ public sealed class DesktopAppController : IDisposable
             }
             else
             {
+                _consecutiveReaderFailures++;
                 State = State.WithReadFailure(
                     result.Status,
                     result.ErrorCode,
                     result.SanitizedErrorMessage);
                 EvaluateNotifications(null, now);
+                EvaluateActivityNotifications();
+                EvaluateDailySummary(now);
                 await _stateStore.SaveAsync(State, _shutdown.Token);
                 await UploadFailureStatusAsync(result);
                 await _logger.WriteAsync(
@@ -253,8 +262,17 @@ public sealed class DesktopAppController : IDisposable
             Settings.GitHubRepository,
             SemanticVersion.Parse(Version),
             _shutdown.Token);
-        State = State with { LastUpdateCheckAtUtc = DateTimeOffset.UtcNow };
-        await _stateStore.SaveAsync(State, _shutdown.Token);
+        await _refreshGate.WaitAsync(_shutdown.Token);
+        try
+        {
+            State = State with { LastUpdateCheckAtUtc = DateTimeOffset.UtcNow };
+            await _stateStore.SaveAsync(State, _shutdown.Token);
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+
         StateChanged?.Invoke(this, EventArgs.Empty);
 
         if (result.Status == UpdateCheckStatus.UpdateAvailable && result.Release is not null)
@@ -307,26 +325,23 @@ public sealed class DesktopAppController : IDisposable
 
     public async Task ExportDiagnosticsAsync(string destinationFile)
     {
-        var payload = new
-        {
-            generatedAtUtc = DateTimeOffset.UtcNow,
-            appVersion = Version,
-            status = State.CurrentStatus.ToString(),
-            lastSuccessfulReadAtUtc = State.LastSuccessfulReadAtUtc,
-            lastCloudSyncAtUtc = State.LastSuccessfulCloudSyncAtUtc,
-            source = State.LatestSnapshot?.Source,
-            deviceLabel = Settings.DeviceLabel,
-            localDataDirectory = _paths.RootDirectory,
-            note = "Tokens, passwords, cookies, and raw provider responses are intentionally excluded."
-        };
+        var payload = CreateDiagnosticSummary();
         var json = System.Text.Json.JsonSerializer.Serialize(
             payload,
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(destinationFile, json, _shutdown.Token);
     }
 
+    public string GetDiagnosticSummary()
+    {
+        return System.Text.Json.JsonSerializer.Serialize(
+            CreateDiagnosticSummary(),
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
     public void Exit()
     {
+        IsExiting = true;
         System.Windows.Application.Current.Shutdown();
     }
 
@@ -495,26 +510,138 @@ public sealed class DesktopAppController : IDisposable
         var minutes = IsCodexActive()
             ? Settings.ActiveRefreshMinutes
             : Settings.IdleRefreshMinutes;
-        return TimeSpan.FromMinutes(minutes);
+        var failureMultiplier = Math.Pow(2, Math.Min(_consecutiveReaderFailures, 3));
+        return TimeSpan.FromMinutes(Math.Min(30, minutes * failureMultiplier));
     }
 
     private static bool IsCodexActive()
     {
+        var (codex, chatGpt) = DetectRelevantProcesses();
+        return codex || chatGpt;
+    }
+
+    private static (bool Codex, bool ChatGpt) DetectRelevantProcesses()
+    {
         try
         {
-            return Process.GetProcesses().Any(process =>
+            var codex = false;
+            var chatGpt = false;
+            foreach (var process in Process.GetProcesses())
             {
                 using (process)
                 {
-                    return process.ProcessName.Contains("codex", StringComparison.OrdinalIgnoreCase)
-                        || process.ProcessName.Contains("chatgpt", StringComparison.OrdinalIgnoreCase);
+                    codex |= process.ProcessName.Contains("codex", StringComparison.OrdinalIgnoreCase);
+                    chatGpt |= process.ProcessName.Contains("chatgpt", StringComparison.OrdinalIgnoreCase);
                 }
-            });
+
+                if (codex && chatGpt)
+                {
+                    break;
+                }
+            }
+
+            return (codex, chatGpt);
         }
         catch
         {
-            return false;
+            return (false, false);
         }
+    }
+
+    private void EvaluateActivityNotifications()
+    {
+        var (codexActive, chatGptOpen) = DetectRelevantProcesses();
+        if (Settings.WindowsNotificationsEnabled && Settings.ActivityNotificationsEnabled)
+        {
+            if (State.WasCodexActive == false && codexActive)
+            {
+                RaiseNotification(
+                    "Codex activity detected",
+                    "Codex is active; the companion will use the active refresh interval.");
+            }
+
+            if (State.WasChatGptOpen == false && chatGptOpen)
+            {
+                RaiseNotification("ChatGPT opened", "Local monitoring remains passive.");
+            }
+            else if (State.WasChatGptOpen == true && !chatGptOpen)
+            {
+                RaiseNotification("ChatGPT closed", "Monitoring continues from the system tray.");
+            }
+        }
+
+        State = State with
+        {
+            WasCodexActive = codexActive,
+            WasChatGptOpen = chatGptOpen
+        };
+    }
+
+    private void EvaluateDailySummary(DateTimeOffset nowUtc)
+    {
+        if (!Settings.WindowsNotificationsEnabled
+            || !Settings.DailySummaryEnabled
+            || State.LatestSnapshot is null)
+        {
+            return;
+        }
+
+        DateTimeOffset local;
+        try
+        {
+            local = TimeZoneDisplay.ConvertFromUtc(nowUtc, Settings.TimeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            local = nowUtc.ToLocalTime();
+        }
+
+        var date = DateOnly.FromDateTime(local.DateTime);
+        if (local.Hour < 9 || State.LastDailySummaryLocalDate == date)
+        {
+            return;
+        }
+
+        var shortRemaining = State.LatestSnapshot.ShortTermWindow?.RemainingPercent;
+        var weeklyRemaining = State.LatestSnapshot.WeeklyWindow?.RemainingPercent;
+        RaiseNotification(
+            "Codex daily summary",
+            $"Short-term: {FormatPercent(shortRemaining)} · Weekly: {FormatPercent(weeklyRemaining)}.");
+        State = State with { LastDailySummaryLocalDate = date };
+    }
+
+    private object CreateDiagnosticSummary()
+    {
+        return new
+        {
+            generatedAtUtc = DateTimeOffset.UtcNow,
+            appVersion = Version,
+            windowsVersion = Environment.OSVersion.VersionString,
+            status = State.CurrentStatus.ToString(),
+            selectedReader = Settings.ReaderMode.ToString(),
+            source = State.LatestSnapshot?.Source,
+            lastSuccessfulReadAtUtc = State.LastSuccessfulReadAtUtc,
+            lastCloudSyncAtUtc = State.LastSuccessfulCloudSyncAtUtc,
+            lastErrorCode = State.LastErrorCode,
+            deviceLabel = Settings.DeviceLabel,
+            notificationConfiguration = new
+            {
+                windows = Settings.WindowsNotificationsEnabled,
+                resetWarning = Settings.ShortTermResetWarningEnabled,
+                resetDetected = Settings.ResetDetectedEnabled,
+                everyUsageChange = Settings.EveryUsageChangeEnabled,
+                activity = Settings.ActivityNotificationsEnabled,
+                dailySummary = Settings.DailySummaryEnabled,
+                offlineAfterMinutes = Settings.OfflineAfterMinutes
+            },
+            localDataDirectory = _paths.RootDirectory,
+            note = "Tokens, passwords, cookies, raw provider responses, prompts, and conversations are intentionally excluded."
+        };
+    }
+
+    private static string FormatPercent(decimal? value)
+    {
+        return value is null ? "unavailable" : $"{value:0.#}%";
     }
 
     private void RaiseNotification(string title, string message)

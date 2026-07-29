@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using CodexUsageCompanion.Core.Models;
 using CodexUsageCompanion.Core.Settings;
 using CodexUsageCompanion.Core.Versioning;
@@ -192,6 +193,69 @@ public sealed class InfrastructureBehaviorTests
         Assert.Contains("temporary-password", requestBody, StringComparison.Ordinal);
         Assert.DoesNotContain("temporary-password", stored, StringComparison.Ordinal);
         Assert.Contains("refresh-value", stored, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Supabase_sync_uploads_only_normalized_fields_and_reports_temporary_failure()
+    {
+        var credentials = new InMemoryCredentialStore();
+        await credentials.SaveAsync(
+            SupabaseAuthClient.CredentialTarget,
+            JsonSerializer.Serialize(
+                new SupabaseSession
+                {
+                    AccessToken = "user-access-token",
+                    RefreshToken = "user-refresh-token",
+                    ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1),
+                    UserId = "00000000-0000-0000-0000-000000000001"
+                },
+                JsonDefaults.Create()));
+        string? uploadedBody = null;
+        string? bearer = null;
+        var responseStatus = HttpStatusCode.OK;
+        using var client = new HttpClient(new AsyncStubHandler(async request =>
+        {
+            uploadedBody = await request.Content!.ReadAsStringAsync();
+            bearer = request.Headers.Authorization?.Parameter;
+            return new HttpResponseMessage(responseStatus);
+        }));
+        var auth = new SupabaseAuthClient(client, credentials);
+        var sync = new SupabaseSyncClient(client, auth);
+        var settings = new AppSettings
+        {
+            SupabaseUrl = "https://project.supabase.co",
+            SupabasePublishableKey = "sb_publishable_test"
+        };
+
+        var success = await sync.UploadAsync(settings, Snapshot(44));
+        Assert.True(success.IsSuccess);
+        Assert.Equal("user-access-token", bearer);
+        Assert.Contains("\"shortTerm\"", uploadedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("user-access-token", uploadedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("user-refresh-token", uploadedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("password", uploadedBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("prompt", uploadedBody, StringComparison.OrdinalIgnoreCase);
+
+        responseStatus = HttpStatusCode.ServiceUnavailable;
+        var temporary = await sync.UploadAsync(settings, Snapshot(43));
+        Assert.Equal(SupabaseOperationStatus.TemporaryFailure, temporary.Status);
+    }
+
+    [Fact]
+    public async Task Supabase_auth_rejects_invalid_server_response()
+    {
+        using var client = new HttpClient(new StubHandler(
+            _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json")
+            }));
+        var result = await new SupabaseAuthClient(client, new InMemoryCredentialStore())
+            .SignInAsync(
+                "https://project.supabase.co",
+                "sb_publishable_test",
+                "person@example.com",
+                "temporary-password");
+        Assert.Equal(SupabaseOperationStatus.InvalidResponse, result.Status);
     }
 
     [Theory]

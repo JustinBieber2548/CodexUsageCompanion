@@ -74,6 +74,14 @@ public sealed record SemanticVersion :
         var prerelease = match.Groups["pre"].Success
             ? match.Groups["pre"].Value.Split('.')
             : [];
+        if (prerelease.Any(identifier =>
+                identifier.Length > 1
+                && identifier[0] == '0'
+                && identifier.All(char.IsAsciiDigit)))
+        {
+            return false;
+        }
+
         version = new SemanticVersion(
             major,
             minor,
