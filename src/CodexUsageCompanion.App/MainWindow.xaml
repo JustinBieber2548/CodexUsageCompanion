@@ -1,0 +1,160 @@
+<Window x:Class="CodexUsageCompanion.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Codex Usage Companion"
+        Width="760"
+        Height="610"
+        MinWidth="680"
+        MinHeight="540"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BackgroundBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,22">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Codex Usage Companion"
+                               FontSize="26"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock x:Name="StatusText"
+                               Margin="0,5,0,0"
+                               Foreground="{StaticResource MutedBrush}"
+                               FontSize="14" />
+                </StackPanel>
+                <Border Grid.Column="1"
+                        x:Name="StatusBadge"
+                        Padding="12,7"
+                        CornerRadius="18"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusBadgeText"
+                               Foreground="White"
+                               FontWeight="SemiBold" />
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Padding="22"
+                        CornerRadius="14"
+                        Background="{StaticResource PanelBrush}">
+                    <StackPanel>
+                        <TextBlock Text="5-hour window"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   FontSize="14" />
+                        <TextBlock x:Name="ShortPercentText"
+                                   Margin="0,6,0,5"
+                                   FontSize="38"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <ProgressBar x:Name="ShortProgress"
+                                     Height="8"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Margin="0,2,0,12" />
+                        <TextBlock x:Name="ShortResetText"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2"
+                        Padding="22"
+                        CornerRadius="14"
+                        Background="{StaticResource PanelBrush}">
+                    <StackPanel>
+                        <TextBlock Text="Weekly window"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   FontSize="14" />
+                        <TextBlock x:Name="WeeklyPercentText"
+                                   Margin="0,6,0,5"
+                                   FontSize="38"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <ProgressBar x:Name="WeeklyProgress"
+                                     Height="8"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Margin="0,2,0,12" />
+                        <TextBlock x:Name="WeeklyResetText"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2"
+                    Margin="0,16,0,0"
+                    Padding="20"
+                    CornerRadius="14"
+                    Background="{StaticResource PanelBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Last device read" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="LastReadText" Grid.Column="1" Margin="10,0,24,8" />
+                    <TextBlock Grid.Column="2" Text="Cloud sync" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="LastSyncText" Grid.Column="3" Margin="10,0,0,8" />
+                    <TextBlock Grid.Row="1" Text="Device" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="DeviceText" Grid.Row="1" Grid.Column="1" Margin="10,0,24,8" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Source" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="SourceText" Grid.Row="1" Grid.Column="3" Margin="10,0,0,8" />
+                    <TextBlock Grid.Row="2" Text="Version" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="VersionText" Grid.Row="2" Grid.Column="1" Margin="10,0,24,0" />
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Local data" Foreground="{StaticResource MutedBrush}" />
+                    <TextBlock x:Name="DataPathText"
+                               Grid.Row="2"
+                               Grid.Column="3"
+                               Margin="10,0,0,0"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTipService.ShowDuration="30000" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="3" Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="Refresh now"
+                        Click="Refresh_Click"
+                        Background="{StaticResource AccentBrush}"
+                        Foreground="White"
+                        BorderThickness="0" />
+                <Button Grid.Column="1" Content="Settings" Click="Settings_Click" />
+                <Button Grid.Column="2" Content="Export diagnostics" Click="Export_Click" />
+                <TextBlock Grid.Column="4"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedBrush}"
+                           Text="Closing this window keeps monitoring in the tray." />
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Window>
