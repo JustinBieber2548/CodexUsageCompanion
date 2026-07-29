@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+      - name: Restore
+        run: dotnet restore CodexUsageCompanion.sln
+      - name: Build
+        run: dotnet build CodexUsageCompanion.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test CodexUsageCompanion.sln --configuration Release --no-build --verbosity minimal --collect:"XPlat Code Coverage"
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check formatting
+        run: deno fmt --check supabase/functions
+      - name: Type check
+        run: >-
+          deno check
+          supabase/functions/ingest-usage/index.ts
+          supabase/functions/telegram-webhook/index.ts
+          supabase/functions/notification-check/index.ts
+      - name: Test
+        run: deno test --allow-env supabase/functions
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start minimal local Supabase
+        run: supabase start -x studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor
+      - name: Apply migrations from clean state
+        run: supabase db reset
+      - name: Lint database
+        run: supabase db lint --local --level error
+      - name: Test Row Level Security
+        run: supabase test db

@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    environment: production-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Enforce public-release gates
+        shell: pwsh
+        env:
+          PRODUCTION_READER_VERIFIED: ${{ vars.PRODUCTION_READER_VERIFIED }}
+          RELEASE_LICENSE_APPROVED: ${{ vars.RELEASE_LICENSE_APPROVED }}
+        run: |
+          if ($env:PRODUCTION_READER_VERIFIED -ne 'true') {
+            throw "The production reader has not been marked verified."
+          }
+          if ($env:RELEASE_LICENSE_APPROVED -ne 'true' -or -not (Test-Path -LiteralPath LICENSE)) {
+            throw "A project license has not been approved and committed."
+          }
+
+      - name: Validate tag version
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content -LiteralPath Directory.Build.props
+          $declared = [string]$props.Project.PropertyGroup.Version
+          $tagged = $env:GITHUB_REF_NAME.TrimStart('v')
+          if ($declared -ne $tagged) {
+            throw "Tag $tagged does not match Directory.Build.props version $declared."
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Import protected signing certificate
+        shell: pwsh
+        env:
+          CODE_SIGNING_CERT_PFX_BASE64: ${{ secrets.CODE_SIGNING_CERT_PFX_BASE64 }}
+          CODE_SIGNING_CERT_PASSWORD: ${{ secrets.CODE_SIGNING_CERT_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CODE_SIGNING_CERT_PFX_BASE64)) {
+            throw "The public release signing certificate secret is not configured."
+          }
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'release-signing.pfx'
+          [IO.File]::WriteAllBytes(
+            $pfxPath,
+            [Convert]::FromBase64String($env:CODE_SIGNING_CERT_PFX_BASE64)
+          )
+          $password = ConvertTo-SecureString $env:CODE_SIGNING_CERT_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate `
+            -FilePath $pfxPath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password $password
+          Remove-Item -LiteralPath $pfxPath -Force
+          "CODE_SIGNING_CERT_THUMBPRINT=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          $signTool = Get-ChildItem `
+            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if ($null -eq $signTool) {
+            throw "signtool.exe was not found."
+          }
+          "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "INNO_SETUP_COMPILER=${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Test, publish, sign, and package
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          .\scripts\build-windows.ps1 -Version $version
+
+      - name: Verify Authenticode signatures
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -LiteralPath artifacts\installer -Filter '*.exe' |
+            Select-Object -First 1
+          & $env:SIGNTOOL_PATH verify /pa /all /v $installer.FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw "Installer signature verification failed."
+          }
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $assets = Get-ChildItem -LiteralPath artifacts\installer -File |
+            ForEach-Object FullName
+          gh release create $env:GITHUB_REF_NAME $assets `
+            --title "Codex Usage Companion $version" `
+            --generate-notes `
+            --verify-tag
