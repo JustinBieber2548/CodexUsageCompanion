@@ -1,0 +1,67 @@
+# .NET build output
+**/bin/
+**/obj/
+artifacts/
+publish/
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# IDE and user-specific files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local application data and databases
+data/
+logs/
+backups/
+diagnostics/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+credentials.json
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Node and Edge Function tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Packages, installers, and release output
+packages/
+*.nupkg
+*.snupkg
+*.msi
+*.msix
+*.appx
+*.exe
+releases/
+
+# Operating-system files
+Thumbs.db
+Desktop.ini
+.DS_Store
