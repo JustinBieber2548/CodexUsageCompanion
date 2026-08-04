@@ -151,12 +151,25 @@ public sealed class CodexCliRpcUsageReader : ICodexUsageReader
             throw new InvalidDataException("The Codex CLI did not return rate limits.");
         }
 
-        var shortTerm = TryGetProperty(rateLimits, "primary", out var primary)
-            ? ParseWindow(primary, false)
-            : null;
-        var weekly = TryGetProperty(rateLimits, "secondary", out var secondary)
-            ? ParseWindow(secondary, true)
-            : null;
+        UsageWindow? shortTerm = null;
+        UsageWindow? weekly = null;
+        if (TryGetProperty(rateLimits, "primary", out var primary))
+        {
+            CodexUsageWindowClassifier.Assign(
+                ParseWindow(primary),
+                CodexUsageWindowKind.ShortTerm,
+                ref shortTerm,
+                ref weekly);
+        }
+
+        if (TryGetProperty(rateLimits, "secondary", out var secondary))
+        {
+            CodexUsageWindowClassifier.Assign(
+                ParseWindow(secondary),
+                CodexUsageWindowKind.Weekly,
+                ref shortTerm,
+                ref weekly);
+        }
         if (shortTerm is null && weekly is null)
         {
             throw new InvalidDataException("The Codex CLI did not return supported usage windows.");
@@ -288,7 +301,7 @@ public sealed class CodexCliRpcUsageReader : ICodexUsageReader
         }
     }
 
-    private static UsageWindow? ParseWindow(JsonElement element, bool weekly)
+    private static UsageWindow? ParseWindow(JsonElement element)
     {
         if (element.ValueKind != JsonValueKind.Object
             || !TryReadDecimal(element, "usedPercent", "used_percent", out var used))
@@ -306,9 +319,7 @@ public sealed class CodexCliRpcUsageReader : ICodexUsageReader
         var duration = durationMinutes > 0 ? TimeSpan.FromMinutes(durationMinutes) : (TimeSpan?)null;
         return new UsageWindow
         {
-            Name = weekly
-                ? "Weekly window"
-                : duration == TimeSpan.FromHours(5) ? "5-hour window" : "Short-term window",
+            Name = "Usage window",
             RemainingPercent = 100 - used,
             UsedPercent = used,
             ResetsAtUtc = resetAt > 0 ? DateTimeOffset.FromUnixTimeSeconds(resetAt) : null,

@@ -199,13 +199,21 @@ public sealed class CodexOAuthUsageReader : ICodexUsageReader, IDisposable
         if (TryGetProperty(rateLimit, "primary_window", out var primary)
             && primary.ValueKind == JsonValueKind.Object)
         {
-            shortTerm = ParseWindow(primary, false);
+            CodexUsageWindowClassifier.Assign(
+                ParseWindow(primary),
+                CodexUsageWindowKind.ShortTerm,
+                ref shortTerm,
+                ref weekly);
         }
 
         if (TryGetProperty(rateLimit, "secondary_window", out var secondary)
             && secondary.ValueKind == JsonValueKind.Object)
         {
-            weekly = ParseWindow(secondary, true);
+            CodexUsageWindowClassifier.Assign(
+                ParseWindow(secondary),
+                CodexUsageWindowKind.Weekly,
+                ref shortTerm,
+                ref weekly);
         }
 
         if (shortTerm is null && weekly is null)
@@ -361,7 +369,7 @@ public sealed class CodexOAuthUsageReader : ICodexUsageReader, IDisposable
         }
     }
 
-    private static UsageWindow ParseWindow(JsonElement element, bool weekly)
+    private static UsageWindow ParseWindow(JsonElement element)
     {
         if (!TryReadDecimal(element, "used_percent", "usedPercent", out var used)
             || used is < 0 or > 100)
@@ -375,9 +383,7 @@ public sealed class CodexOAuthUsageReader : ICodexUsageReader, IDisposable
 
         return new UsageWindow
         {
-            Name = weekly
-                ? "Weekly window"
-                : duration == TimeSpan.FromHours(5) ? "5-hour window" : "Short-term window",
+            Name = "Usage window",
             RemainingPercent = 100 - used,
             UsedPercent = used,
             ResetsAtUtc = resetAt > 0 ? DateTimeOffset.FromUnixTimeSeconds(resetAt) : null,

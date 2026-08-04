@@ -137,24 +137,26 @@
             </Border>
 
             <Grid Grid.Row="3" Margin="0,20,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0"
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <WrapPanel>
+                    <Button
                         Content="Refresh now"
                         Click="Refresh_Click"
                         Background="{StaticResource AccentBrush}"
                         Foreground="White"
                         BorderThickness="0" />
-                <Button Grid.Column="1" Content="Settings" Click="Settings_Click" />
-                <Button Grid.Column="2" Content="Export diagnostics" Click="Export_Click" />
-                <Button Grid.Column="3" Content="Copy summary" Click="Copy_Click" />
-                <TextBlock Grid.Column="5"
+                    <Button x:Name="UpdateButton"
+                            Content="Check for updates"
+                            Click="Update_Click" />
+                    <Button Content="Settings" Click="Settings_Click" />
+                    <Button Content="Export diagnostics" Click="Export_Click" />
+                    <Button Content="Copy summary" Click="Copy_Click" />
+                </WrapPanel>
+                <TextBlock Grid.Row="1"
+                           Margin="0,10,0,0"
                            VerticalAlignment="Center"
                            Foreground="{StaticResource MutedBrush}"
                            Text="Closing this window keeps monitoring in the tray." />

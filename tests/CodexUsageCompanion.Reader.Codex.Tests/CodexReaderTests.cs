@@ -48,6 +48,32 @@ public sealed class CodexReaderTests
     }
 
     [Fact]
+    public void OAuth_primary_seven_day_window_is_classified_as_weekly()
+    {
+        var payload = Encoding.UTF8.GetBytes(
+            """
+            {
+              "rate_limit": {
+                "primary_window": {
+                  "used_percent": 86,
+                  "reset_at": 1786161065,
+                  "limit_window_seconds": 604800
+                }
+              }
+            }
+            """);
+
+        var snapshot = CodexOAuthUsageReader.ParseUsage(
+            payload,
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"));
+
+        Assert.Null(snapshot.ShortTermWindow);
+        Assert.Equal(14m, snapshot.WeeklyWindow?.RemainingPercent);
+        Assert.Equal(TimeSpan.FromDays(7), snapshot.WeeklyWindow?.WindowDuration);
+        Assert.Equal("Weekly window", snapshot.WeeklyWindow?.Name);
+    }
+
+    [Fact]
     public async Task OAuth_reader_returns_authentication_required_when_auth_is_missing()
     {
         using var directory = new TemporaryDirectory();
@@ -113,6 +139,30 @@ public sealed class CodexReaderTests
         Assert.Equal(88m, snapshot.ShortTermWindow?.RemainingPercent);
         Assert.Equal(55m, snapshot.WeeklyWindow?.RemainingPercent);
         Assert.Equal("codex-cli-rpc", snapshot.Source);
+    }
+
+    [Fact]
+    public void Cli_primary_seven_day_window_is_classified_as_weekly()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "id": 2,
+              "result": {
+                "rateLimits": {
+                  "primary": {"usedPercent": 86, "windowDurationMins": 10080}
+                }
+              }
+            }
+            """);
+
+        var snapshot = CodexCliRpcUsageReader.ParseResponse(
+            document.RootElement,
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"));
+
+        Assert.Null(snapshot.ShortTermWindow);
+        Assert.Equal(14m, snapshot.WeeklyWindow?.RemainingPercent);
+        Assert.Equal("Weekly window", snapshot.WeeklyWindow?.Name);
     }
 
     private sealed class FixedClock : IClock

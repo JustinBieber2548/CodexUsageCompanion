@@ -54,6 +54,19 @@ public partial class MainWindow : Window
         await _controller.RefreshAsync(true);
     }
 
+    private async void Update_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateButton.IsEnabled = false;
+        try
+        {
+            await _controller.CheckForUpdatesAsync(true);
+        }
+        finally
+        {
+            UpdateButton.IsEnabled = true;
+        }
+    }
+
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         new SettingsWindow(_controller) { Owner = this }.ShowDialog();
