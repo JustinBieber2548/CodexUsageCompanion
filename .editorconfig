@@ -2,11 +2,29 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
+
+[*.cs]
+end_of_line = crlf
+
+[*.xaml]
+end_of_line = crlf
+
+[*.csproj]
+end_of_line = crlf
+
+[*.sln]
+end_of_line = crlf
+
+[*.ps1]
+end_of_line = crlf
+
+[*.iss]
+end_of_line = crlf
 
 [*.{json,jsonc,yml,yaml,md}]
 indent_size = 2
