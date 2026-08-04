@@ -167,7 +167,7 @@ Do not publish a draft until release notes clearly identify:
 - known limitations, including reader status;
 - installer SHA-256.
 
-After publishing, verify GitHub's release asset API exposes a `sha256:` digest because the Version 1 updater requires it. Test **Check for updates** from the previous release, review notes, decline once, then complete one update.
+After publishing, verify GitHub's release asset API exposes a `sha256:` digest because the Version 1 updater requires it. Test **Check for updates** from the previous release, review notes, decline once, then complete one automatic update and confirm the app reopens without showing another installer wizard.
 
 ## 6. Roll back the desktop app
 

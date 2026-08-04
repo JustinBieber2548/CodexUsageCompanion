@@ -480,7 +480,7 @@ public sealed class DesktopAppController : IDisposable
             release.Version.ToString(),
             _shutdown.Token);
         var install = System.Windows.MessageBox.Show(
-            $"The update passed its SHA-256 check and your local data was backed up.\n\nBackup: {backup.BackupDirectory}\n\nStart the installer now?",
+            $"The update passed its SHA-256 check and your local data was backed up.\n\nBackup: {backup.BackupDirectory}\n\nInstall automatically now? The app will close, show installation progress, and reopen when the update finishes.",
             "Ready to install",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Question);
@@ -489,8 +489,35 @@ public sealed class DesktopAppController : IDisposable
             return;
         }
 
-        Process.Start(new ProcessStartInfo(download.FilePath) { UseShellExecute = true });
-        Exit();
+        try
+        {
+            if (UpdateInstallerLauncher.StartAutomaticUpdate(download.FilePath) is null)
+            {
+                throw new InvalidOperationException("The update installer did not start.");
+            }
+
+            await _logger.WriteAsync(
+                LogLevel.Information,
+                "automatic_update_started",
+                $"The user approved automatic installation of version {release.Version}.");
+            Exit();
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException
+                or System.ComponentModel.Win32Exception
+                or ArgumentException
+                or NotSupportedException)
+        {
+            await _logger.WriteAsync(
+                LogLevel.Warning,
+                "automatic_update_start_failed",
+                "The approved update installer could not be started.");
+            System.Windows.MessageBox.Show(
+                "The update was downloaded and verified, but Windows could not start the automatic installation. The application is still running and no installed files were replaced.",
+                "Update could not start",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+        }
     }
 
     private static ICodexUsageReader CreateReader(AppSettings settings)

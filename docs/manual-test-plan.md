@@ -64,7 +64,7 @@ Complete this plan on Windows 11 before each public release. Record the app vers
 - Confirm an update displays version and release notes.
 - Decline download; confirm nothing installs.
 - Approve download with a wrong digest; confirm installation is blocked.
-- Approve a correct signed installer; confirm a backup is created and a second confirmation is required.
+- Approve a correct signed installer; confirm a backup is created, a second confirmation is required, installation then completes without another wizard, and the updated app reopens.
 - Roll back using the previous GitHub Release installer and the instructions in [releasing.md](releasing.md).
 
 ## Exit criteria

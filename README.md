@@ -17,7 +17,7 @@ The companion never sends a prompt, starts a Codex job, invokes an OpenAI model,
 - Durable local history, one newest queued cloud update, retry backoff, and restart-safe notification deduplication.
 - 10%, 5%, and 0% short-term alerts; 10% and 5% weekly alerts; reset warning, reset confirmation, offline, restored, and authentication alerts.
 - Supabase Row Level Security, normalized snapshots, retention, Edge Functions, cron checks, and a Telegram bot.
-- Semantic-version GitHub Release updater with daily-at-most checks, release notes, explicit consent, SHA-256 validation, pre-upgrade backup, and no forced updates.
+- Semantic-version GitHub Release updater with daily-at-most checks, release notes, explicit consent, SHA-256 validation, pre-upgrade backup, and a progress-only automatic install that reopens the app.
 
 ## Architecture
 

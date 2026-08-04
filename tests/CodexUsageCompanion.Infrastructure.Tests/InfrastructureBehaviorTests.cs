@@ -106,6 +106,22 @@ public sealed class InfrastructureBehaviorTests
     }
 
     [Fact]
+    public void Approved_update_uses_progress_only_install_and_reopens_application()
+    {
+        var startInfo = UpdateInstallerLauncher.CreateAutomaticUpdateStartInfo(
+            @"C:\Updates\CodexUsageCompanion-1.1.0-win-x64-setup.exe");
+
+        Assert.True(startInfo.UseShellExecute);
+        Assert.Contains("/SILENT", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.Contains("/SP-", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.Contains("/NORESTART", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.Contains("/CLOSEAPPLICATIONS", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.Contains("/STARTAPP=1", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.DoesNotContain("/VERYSILENT", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.DoesNotContain("/SUPPRESSMSGBOXES", startInfo.Arguments, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Github_release_check_uses_semver_and_handles_unavailability()
     {
         var releaseJson =

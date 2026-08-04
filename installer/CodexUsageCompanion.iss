@@ -43,13 +43,20 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; AppUserModelID: "Co
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall; Check: ShouldStartApplication
 
 [UninstallDelete]
 ; Intentionally empty: user settings, encrypted credentials, deduplication
 ; state, queued sync, and history live outside {app} and are preserved.
 
 [Code]
+function ShouldStartApplication: Boolean;
+begin
+  Result :=
+    (not WizardSilent) or
+    (CompareText(ExpandConstant('{param:STARTAPP|0}'), '1') = 0);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ExistingExe: String;

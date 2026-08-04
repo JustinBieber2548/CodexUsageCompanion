@@ -147,7 +147,7 @@
                                Margin="0,18,0,0"
                                Foreground="{StaticResource MutedBrush}"
                                TextWrapping="Wrap"
-                               Text="Updates are never forced. You review release notes and approve both download and installation. Settings and local history are backed up before the installer starts." />
+                               Text="Updates are never forced. You review release notes and approve both download and automatic installation. Settings and local history are backed up before installation; progress is shown and the app reopens afterward." />
                 </Grid>
             </TabItem>
         </TabControl>

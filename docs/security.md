@@ -49,14 +49,15 @@ Logs are structured, rotated at 2 MB, and pass messages/properties through token
 
 ## Update threat model
 
-The updater never silently installs:
+The updater never installs without explicit approval:
 
 1. GitHub Release metadata is parsed as stable semantic versioning.
 2. The user reviews the new version and release notes.
 3. The user approves the download.
 4. The asset's GitHub SHA-256 digest must match.
 5. Existing settings/state are validated and backed up.
-6. The user separately approves launching the installer.
+6. The user separately approves automatic installation.
+7. The installer shows progress without another wizard, preserves per-user data, and reopens the app when complete.
 
 Public release artifacts should also be Authenticode-signed. GitHub unavailability is reported without affecting monitoring.
 
